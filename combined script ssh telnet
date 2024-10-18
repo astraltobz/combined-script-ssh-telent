@@ -1,0 +1,102 @@
+import pexpect
+import sys
+
+# Define variables
+ip_address = '192.168.56.101'
+username = 'cisco'
+password = 'cisco123!'
+enable_password = 'class123!'
+hostname = 'NewHostname'
+config_file_path = 'running_config.txt'
+
+# Function to save running config to a file
+def save_running_config(session):
+    # Send command to get running config
+    session.sendline('show running-config')
+    session.expect('#', timeout=30)  # Adjust timeout if necessary
+    
+    # Save the output to a local file
+    with open(config_file_path, 'w') as config_file:
+        config_file.write(session.before)
+
+# Telnet connection to modify hostname
+def telnet_connection():
+    try:
+        session = pexpect.spawn(f'telnet {ip_address}', encoding='utf-8', timeout=20)
+        session.expect('Username:')
+        session.sendline(username)
+
+        session.expect('Password:')
+        session.sendline(password)
+        
+        session.expect('#')
+        
+        # Enter enable mode
+        session.sendline('enable')
+        session.expect('Password:')
+        session.sendline(enable_password)
+        session.expect('#')
+
+        # Change hostname
+        session.sendline('configure terminal')
+        session.expect(r'\(config\)#')
+        session.sendline(f'hostname {hostname}')
+        session.expect(r'\(config\)#')
+        session.sendline('exit')
+        session.expect('#')
+
+        # Save running config to a file
+        save_running_config(session)
+
+        # Close Telnet session
+        session.sendline('exit')
+        session.close()
+
+        print(f"Telnet: Hostname changed to {hostname} and running config saved.")
+
+    except Exception as e:
+        print(f"Telnet connection failed: {str(e)}")
+        sys.exit(1)
+
+# SSH connection to modify hostname
+def ssh_connection():
+    try:
+        session = pexpect.spawn(f'ssh {username}@{ip_address}', encoding='utf-8', timeout=20)
+        session.expect('password:')
+        session.sendline(password)
+        session.expect('#')
+
+        # Enter enable mode if needed
+        session.sendline('enable')
+        session.expect('Password:')
+        session.sendline(enable_password)
+        session.expect('#')
+
+        # Change hostname
+        session.sendline('configure terminal')
+        session.expect(r'\(config\)#')
+        session.sendline(f'hostname {hostname}')
+        session.expect(r'\(config\)#')
+        session.sendline('exit')
+        session.expect('#')
+
+        # Save running config to a file
+        save_running_config(session)
+
+        # Close SSH session
+        session.sendline('exit')
+        session.close()
+
+        print(f"SSH: Hostname changed to {hostname} and running config saved.")
+
+    except Exception as e:
+        print(f"SSH connection failed: {str(e)}")
+        sys.exit(1)
+
+# Main function to run the script
+def main():
+    telnet_connection()  # Establish Telnet connection and modify hostname
+    ssh_connection()     # Establish SSH connection and modify hostname
+
+if __name__ == "__main__":
+    main()
